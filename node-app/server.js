@@ -1,8 +1,11 @@
 const http = require('http');
 const fs = require('fs');
+const path = require('path');
 
 const server = http.createServer((req, res) => {
-    fs.readFile('/var/www/node-app/index.html', (err, data) => {
+    const filePath = path.join(__dirname, 'index.html');
+
+    fs.readFile(filePath, (err, data) => {
         if (err) {
             console.log(err);
             res.writeHead(500);
