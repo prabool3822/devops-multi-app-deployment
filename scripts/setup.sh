@@ -1,65 +1,107 @@
 #!/bin/bash
 
-echo "🚀 Starting Setup..."
+echo "🚀 Starting Full Setup..."
 
-# Update
+# -------------------------------
+# SYSTEM SETUP
+# -------------------------------
 sudo apt update -y
+sudo apt install -y nginx git curl unzip software-properties-common
 
-# Install NGINX
-sudo apt install nginx -y
-sudo systemctl start nginx
-sudo systemctl enable nginx
-
-# Install Node + PM2
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install nodejs -y
+# -------------------------------
+# NODE + PM2
+# -------------------------------
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
 sudo npm install -g pm2
 
-# Install Python + Flask
-sudo apt install python3-flask -y
+# -------------------------------
+# PYTHON + FLASK
+# -------------------------------
+sudo apt install -y python3 python3-pip
+pip3 install flask
 
-# Install PHP + Composer
-sudo apt install php-fpm php-mysql php-curl php-mbstring php-xml php-bcmath unzip curl -y
+# -------------------------------
+# PHP + LARAVEL DEPENDENCIES
+# -------------------------------
+sudo apt install -y php php-fpm php-cli php-mbstring php-xml php-curl php-sqlite3
 
-cd /home/ubuntu
-curl -sS https://getcomposer.org/installer -o composer-setup.php
-php composer-setup.php
+# Install Composer
+curl -sS https://getcomposer.org/installer | php
 sudo mv composer.phar /usr/local/bin/composer
 
-# Clone repo
+# -------------------------------
+# CLONE PROJECT
+# -------------------------------
 cd /var/www
-git clone https://github.com/prabool3822/devops-multi-app-deployment.git
+sudo rm -rf devops-multi-app-deployment
+sudo git clone https://github.com/prabool3822/devops-multi-app-deployment.git
 cd devops-multi-app-deployment
 
-# Node setup
+# -------------------------------
+# STATIC SITE
+# -------------------------------
+echo "🌐 Setting up Static Site..."
+sudo rm -rf /var/www/html/*
+sudo cp -r static-site/* /var/www/html/
+
+# -------------------------------
+# NODE APP
+# -------------------------------
+echo "⚙️ Setting up Node App..."
 cd node-app
 npm install
 pm2 start server.js --name node-app
-pm2 save
 
-# Flask setup
+# -------------------------------
+# FLASK APP
+# -------------------------------
+echo "🐍 Setting up Flask App..."
 cd ../flask-app
-pm2 start app.py --interpreter=python3 --name flask-app
-pm2 save
+pip3 install -r requirements.txt
+pm2 start app.py --name flask-app --interpreter python3
 
-# Laravel setup
+# -------------------------------
+# LARAVEL APP
+# -------------------------------
+echo "🔥 Setting up Laravel..."
 cd ../laravel-app
-composer install
+
+# Create env
 cp .env.example .env
+
+# Install dependencies
+composer install --no-interaction --prefer-dist
+
+# Generate key
 php artisan key:generate
 
+# Create database
 touch database/database.sqlite
-php artisan migrate
 
-sudo chown -R www-data:www-data /var/www/devops-multi-app-deployment/laravel-app
-sudo chmod -R 775 storage bootstrap/cache
-sudo chmod 664 database/database.sqlite
+# Permissions
+sudo chown -R www-data:www-data storage bootstrap/cache database
+sudo chmod -R 775 storage bootstrap/cache database
 
-# NGINX setup
-sudo cp /var/www/devops-multi-app-deployment/nginx/site-config.conf /etc/nginx/sites-available/devops-app
-sudo ln -s /etc/nginx/sites-available/devops-app /etc/nginx/sites-enabled/
+# Run migrations
+php artisan migrate --force
 
+# Start Laravel
+pm2 start "php artisan serve --host=0.0.0.0 --port=8000" --name laravel-app
+
+# -------------------------------
+# NGINX CONFIG
+# -------------------------------
+echo "🌍 Configuring NGINX..."
+sudo cp ../nginx/site-config.conf /etc/nginx/sites-available/default
+
+sudo nginx -t
 sudo systemctl restart nginx
-sudo systemctl restart php8.3-fpm
 
-echo "✅ Setup Complete!"
+# -------------------------------
+# SAVE PM2
+# -------------------------------
+pm2 save
+pm2 startup systemd -u ubuntu --hp /home/ubuntu
+
+echo "✅ FULL SETUP COMPLETED!"

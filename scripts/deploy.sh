@@ -2,34 +2,51 @@
 
 echo "🚀 Starting Deployment..."
 
-cd /var/www/devops-multi-app-deployment || exit
+cd /var/www/devops-multi-app-deployment
 
 # Pull latest code
 git pull origin main
 
-# Node
+# -------------------------------
+# STATIC SITE
+# -------------------------------
+echo "🌐 Updating Static Site..."
+sudo cp -r static-site/* /var/www/html/
+
+# -------------------------------
+# NODE APP
+# -------------------------------
+echo "⚙️ Updating Node App..."
 cd node-app
 npm install
 pm2 restart node-app
 
-# Flask
+# -------------------------------
+# FLASK APP
+# -------------------------------
+echo "🐍 Updating Flask App..."
 cd ../flask-app
+pip3 install -r requirements.txt
 pm2 restart flask-app
 
-# Laravel
+# -------------------------------
+# LARAVEL APP
+# -------------------------------
+echo "🔥 Updating Laravel..."
 cd ../laravel-app
-composer install --no-interaction --prefer-dist --optimize-autoloader
+
+composer install --no-interaction --prefer-dist
 
 php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-sudo chown -R www-data:www-data /var/www/devops-multi-app-deployment/laravel-app
-sudo chmod -R 775 storage bootstrap/cache
+pm2 restart laravel-app
 
-# Restart services
-sudo systemctl restart nginx
-sudo systemctl restart php8.3-fpm
+# -------------------------------
+# NGINX RELOAD
+# -------------------------------
+sudo systemctl reload nginx
 
-echo "✅ Deployment Done!"
+echo "✅ Deployment Completed!"

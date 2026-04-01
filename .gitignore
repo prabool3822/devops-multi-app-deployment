@@ -1,6 +1,16 @@
+# Node
 node_modules/
-vendor/
+
+# Laravel
+/vendor
 .env
-.env.*
-storage/logs/*
-bootstrap/cache/*
+/storage/logs/*
+/storage/framework/*
+/bootstrap/cache/*.php
+/database/database.sqlite
+
+# Python
+__pycache__/
+
+# OS
+.DS_Store
