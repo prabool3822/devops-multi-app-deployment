@@ -1,0 +1,41 @@
+name: CI-CD Deploy (Self-Hosted Runner)
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Ensure project directory exists
+      run: |
+        mkdir -p /home/ubuntu/devops-multi-app-deployment
+
+    - name: Sync latest code
+      run: |
+        if [ ! -d "/home/ubuntu/devops-multi-app-deployment/.git" ]; then
+          git clone https://github.com/prabool3822/devops-multi-app-deployment.git /home/ubuntu/devops-multi-app-deployment
+        fi
+
+        cd /home/ubuntu/devops-multi-app-deployment
+        git fetch origin
+        git reset --hard origin/main
+
+    - name: Stop existing containers
+      run: |
+        cd /home/ubuntu/devops-multi-app-deployment
+        docker compose down || true
+
+    - name: Build and start containers
+      run: |
+        cd /home/ubuntu/devops-multi-app-deployment
+        docker compose up -d --build
+
+    - name: Cleanup unused images (optional)
+      run: |
+        docker image prune -f
